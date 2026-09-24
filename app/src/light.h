@@ -9,3 +9,6 @@
 
 /* Endpoint hosting the On/Off Light device type (see light.zap). */
 inline constexpr chip::EndpointId kLightEndpointId = 1;
+
+/* Configure the LED (devicetree alias led0) that represents the bulb. */
+int LightInit(void);

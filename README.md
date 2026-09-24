@@ -18,8 +18,9 @@ The device exposes:
 - endpoint 1: On/Off Light (Identify, Groups, On/Off, Descriptor)
 
 The data model is defined in [app/light.zap](app/light.zap) (derived from the
-upstream chef `rootnode_onofflight` device). Changes of the On/Off attribute
-are reported in the log (`Light is ON` / `Light is OFF`).
+upstream chef `rootnode_onofflight` device). The bulb is the `led0` devicetree
+LED, driven through Zephyr's LED API; the state is also logged
+(`Light is ON` / `Light is OFF`).
 
 ## How it works on native_sim
 
@@ -29,13 +30,22 @@ is disabled and no TAP interface or root privileges are needed. Commissioning
 and control happen over the host's own interfaces, the same way as for the
 Linux example apps.
 
-This needs a small patch to connectedhomeip, kept in
-[zephyr/patches](zephyr/patches) and applied with `west patch`:
+On `native_sim`, `led0` is a real LED of the host (by default the keyboard's
+Caps Lock LED, `input4::capslock`), driven through
+`/sys/class/leds/<name>/brightness` by Zephyr's `zephyr,native-linux-leds`
+driver. See [app/boards/native_sim_native_64.overlay](app/boards/native_sim_native_64.overlay).
 
-- the Zephyr `net_if` helpers are only built when Matter uses the Zephyr
-  `net_if` API (glibc and Zephyr networking headers cannot be mixed), and
-- the event loop polls the host sockets instead of blocking in `select()`,
-  which would otherwise stall the simulated CPU and its clock.
+The patches in [zephyr/patches](zephyr/patches) are applied with
+`west patch apply`:
+
+- a backport of the `zephyr,native-linux-leds` driver from Zephyr `main`
+  (not part of v4.4.2), and
+- a small patch to connectedhomeip:
+
+  - the Zephyr `net_if` helpers are only built when Matter uses the Zephyr
+    `net_if` API (glibc and Zephyr networking headers cannot be mixed), and
+  - the event loop polls the host sockets instead of blocking in `select()`,
+    which would otherwise stall the simulated CPU and its clock.
 
 ## Getting started
 
@@ -99,6 +109,25 @@ A debug configuration is also provided:
 ```shell
 west build -b native_sim/native/64 ZMatter/app -- -DEXTRA_CONF_FILE=debug.conf
 ```
+
+### Host LED
+
+List the LEDs of your machine and pick one for the bulb:
+
+```shell
+ls /sys/class/leds
+```
+
+Set its name as `path` in [app/boards/native_sim_native_64.overlay](app/boards/native_sim_native_64.overlay).
+The `brightness` files are only writable by root, so give your user access,
+for example for the Caps Lock LED:
+
+```shell
+sudo chmod o+w /sys/class/leds/input4::capslock/brightness
+```
+
+This lasts until reboot; use a udev rule to make it permanent. Without write
+access the light still works, but only logs its state.
 
 ### Controlling the light
 

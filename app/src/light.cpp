@@ -11,6 +11,7 @@
 #include <app/ConcreteAttributePath.h>
 #include <app/util/generic-callbacks.h>
 
+#include <zephyr/drivers/led.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(app, CONFIG_APP_LOG_LEVEL);
@@ -18,9 +19,34 @@ LOG_MODULE_DECLARE(app, CONFIG_APP_LOG_LEVEL);
 using namespace chip;
 using namespace chip::app::Clusters;
 
-/* The "bulb": native_sim has no lamp, so the state is reported in the log. */
+/* The bulb: led0 (on native_sim a host LED, see boards/native_sim_native_64.overlay). */
+static const struct led_dt_spec sLed = LED_DT_SPEC_GET(DT_ALIAS(led0));
+
+static bool sLedReady;
+
+int LightInit(void)
+{
+	if (!led_is_ready_dt(&sLed)) {
+		/* On native_sim this usually means no write access to the host LED. */
+		LOG_WRN("LED %s is not ready, the light state is only logged", sLed.dev->name);
+		return 0;
+	}
+
+	sLedReady = true;
+
+	return led_off_dt(&sLed);
+}
+
 static void LightSet(bool on)
 {
+	if (sLedReady) {
+		int err = on ? led_on_dt(&sLed) : led_off_dt(&sLed);
+
+		if (err) {
+			LOG_ERR("Failed to set LED: %d", err);
+		}
+	}
+
 	LOG_INF("Light is %s", on ? "ON" : "OFF");
 }
 

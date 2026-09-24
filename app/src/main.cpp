@@ -76,6 +76,13 @@ CHIP_ERROR InitMatter()
 
 int main(void)
 {
+	int err = LightInit();
+
+	if (err) {
+		LOG_ERR("Light init failed: %d", err);
+		return err;
+	}
+
 	if (InitMatter() != CHIP_NO_ERROR) {
 		return -1;
 	}

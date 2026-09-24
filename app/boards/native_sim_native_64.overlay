@@ -1,0 +1,28 @@
+/*
+ * Copyright (c) 2026 Muhammad Waleed Badar
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The light bulb is a real LED of the host, driven through
+ * /sys/class/leds/<path>/brightness. List the available LEDs with
+ * `ls /sys/class/leds` and set `path` accordingly.
+ */
+
+/ {
+	aliases {
+		led0 = &bulb;
+	};
+
+	host_leds {
+		compatible = "zephyr,native-linux-leds";
+
+		bulb: bulb {
+			label = "Light bulb";
+			path = "input4::capslock";
+		};
+	};
+};
+
+/* Replaced by the host LED above. */
+&leds {
+	status = "disabled";
+};

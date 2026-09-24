@@ -1,0 +1,203 @@
+From db9a2889db96f86cc5fcdae84984d30f485a018f Mon Sep 17 00:00:00 2001
+From: Alberto Escolar Piedras <alberto.escolar.piedras@nordicsemi.no>
+Date: Mon, 27 Jul 2026 16:28:24 +0200
+Subject: [PATCH] drivers: led: linux_leds: Split file opening to avoid libC
+ assumptions
+
+To avoid the assumption that ZVFS_O_RDONLY/ZVFS_O_WRONLY match
+O_RDONLY/O_WRONLY, let's just have this code be compiled with the host
+libC always.
+The code is also a bit more readable without all the nsi_host prefixes.
+
+Signed-off-by: Alberto Escolar Piedras <alberto.escolar.piedras@nordicsemi.no>
+---
+ drivers/led/CMakeLists.txt      |  1 +
+ drivers/led/linux_leds.c        | 54 +--------------------------
+ drivers/led/linux_leds_bottom.c | 66 +++++++++++++++++++++++++++++++++
+ drivers/led/linux_leds_bottom.h | 12 ++++++
+ 4 files changed, 81 insertions(+), 52 deletions(-)
+ create mode 100644 drivers/led/linux_leds_bottom.c
+ create mode 100644 drivers/led/linux_leds_bottom.h
+
+diff --git a/drivers/led/CMakeLists.txt b/drivers/led/CMakeLists.txt
+index 3e5a1750f823..a3117e2b9c45 100644
+--- a/drivers/led/CMakeLists.txt
++++ b/drivers/led/CMakeLists.txt
+@@ -37,6 +37,7 @@ zephyr_library_sources_ifdef(CONFIG_TLC59108 tlc59108.c)
+ if(CONFIG_NATIVE_LINUX_LEDS)
+   if(${CMAKE_HOST_SYSTEM_NAME} STREQUAL Linux)
+     zephyr_library_sources(linux_leds.c)
++    target_sources(native_simulator INTERFACE linux_leds_bottom.c)
+   else()
+     message(FATAL_ERROR "CONFIG_NATIVE_LINUX_LEDS is only available on Linux")
+   endif()
+diff --git a/drivers/led/linux_leds.c b/drivers/led/linux_leds.c
+index 5ebd93989ff7..f098bfeb489b 100644
+--- a/drivers/led/linux_leds.c
++++ b/drivers/led/linux_leds.c
+@@ -16,8 +16,8 @@
+ #include <zephyr/drivers/led.h>
+ #include <zephyr/kernel.h>
+ #include <zephyr/logging/log.h>
+-#include <zephyr/sys/fdtable.h>
+ #include <zephyr/sys/util.h>
++#include "linux_leds_bottom.h"
+ 
+ LOG_MODULE_REGISTER(linux_leds, CONFIG_LED_LOG_LEVEL);
+ 
+@@ -68,57 +68,6 @@ static DEVICE_API(led, linux_leds_api) = {
+ 	.set_brightness = linux_leds_set_brightness,
+ };
+ 
+-static int linux_led_open(const char *path, int *max)
+-{
+-	/* 34: Length of /sys/class/leds/%s/max_brightness + \0 */
+-	char full_path[strlen(path) + 34];
+-	char buf[32];
+-	int fd;
+-	int ret;
+-
+-	ret = snprintf(full_path, sizeof(full_path), "/sys/class/leds/%s/max_brightness", path);
+-	if (ret < 0) {
+-		return ret;
+-	} else if (ret >= sizeof(full_path)) {
+-		return -ENOMEM;
+-	}
+-
+-	fd = nsi_host_open(full_path, ZVFS_O_RDONLY);
+-	if (fd < 0) {
+-		LOG_ERR("Failed to open the led max brightness device %s: %s",
+-			full_path, strerror(nsi_host_get_errno()));
+-		return -EIO;
+-	}
+-
+-	ret = nsi_host_read(fd, buf, sizeof(buf) - 1);
+-	if (ret < 0) {
+-		LOG_WRN("Read error: %s", strerror(nsi_host_get_errno()));
+-		nsi_host_close(fd);
+-		return -EIO;
+-	}
+-
+-	buf[ret] = '\0';
+-	*max = strtol(buf, NULL, 10);
+-
+-	nsi_host_close(fd);
+-
+-	ret = snprintf(full_path, sizeof(full_path), "/sys/class/leds/%s/brightness", path);
+-	if (ret < 0) {
+-		return ret;
+-	} else if (ret >= sizeof(full_path)) {
+-		return -ENOMEM;
+-	}
+-
+-	fd = nsi_host_open(full_path, ZVFS_O_WRONLY);
+-	if (fd < 0) {
+-		LOG_ERR("Failed to open the led device %s: %s",
+-			full_path, strerror(nsi_host_get_errno()));
+-		return -EIO;
+-	}
+-
+-	return fd;
+-}
+-
+ static int linux_leds_init(const struct device *dev)
+ {
+ 	const struct linux_leds_config *cfg = dev->config;
+@@ -129,6 +78,7 @@ static int linux_leds_init(const struct device *dev)
+ 
+ 		ret = linux_led_open(led->path, &led->max);
+ 		if (ret < 0) {
++			ret = -EIO;
+ 			goto cleanup;
+ 		}
+ 
+diff --git a/drivers/led/linux_leds_bottom.c b/drivers/led/linux_leds_bottom.c
+new file mode 100644
+index 000000000000..3157fd01d2d6
+--- /dev/null
++++ b/drivers/led/linux_leds_bottom.c
+@@ -0,0 +1,66 @@
++/*
++ * SPDX-FileCopyrightText: Copyright 2026 Google LLC
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#undef _POSIX_C_SOURCE
++#define _POSIX_C_SOURCE 200809L
++#include <string.h>
++#include <stdlib.h>
++#include <stdio.h>
++#include <errno.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <nsi_tracing.h>
++
++int linux_led_open(const char *path, int *max)
++{
++	/* 34: Length of /sys/class/leds/%s/max_brightness + \0 */
++	char full_path[strlen(path) + 34];
++	char buf[32];
++	int fd;
++	int ret;
++
++	ret = snprintf(full_path, sizeof(full_path), "/sys/class/leds/%s/max_brightness", path);
++	if (ret < 0) {
++		return ret;
++	} else if (ret >= sizeof(full_path)) {
++		return -1;
++	}
++
++	fd = open(full_path, O_RDONLY);
++	if (fd < 0) {
++		nsi_print_warning("Failed to open the led max brightness device %s: %s\n",
++				  full_path, strerror(errno));
++		return -1;
++	}
++
++	ret = read(fd, buf, sizeof(buf) - 1);
++	if (ret < 0) {
++		nsi_print_warning("Read error: %s", strerror(errno));
++		close(fd);
++		return -1;
++	}
++
++	buf[ret] = '\0';
++	*max = strtol(buf, NULL, 10);
++
++	close(fd);
++
++	ret = snprintf(full_path, sizeof(full_path), "/sys/class/leds/%s/brightness", path);
++	if (ret < 0) {
++		return ret;
++	} else if (ret >= sizeof(full_path)) {
++		return -1;
++	}
++
++	fd = open(full_path, O_WRONLY);
++	if (fd < 0) {
++		nsi_print_warning("Failed to open the led device %s: %s\n",
++				  full_path, strerror(errno));
++		return -1;
++	}
++
++	return fd;
++}
+diff --git a/drivers/led/linux_leds_bottom.h b/drivers/led/linux_leds_bottom.h
+new file mode 100644
+index 000000000000..7ac13d587a44
+--- /dev/null
++++ b/drivers/led/linux_leds_bottom.h
+@@ -0,0 +1,12 @@
++/*
++ * SPDX-FileCopyrightText: Copyright The Zephyr Project Contributors
++ *
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++#ifndef DRIVERS_LED_LINUX_LED_BOTTOM_H
++#define DRIVERS_LED_LINUX_LED_BOTTOM_H
++
++int linux_led_open(const char *path, int *max);
++
++#endif /* DRIVERS_LED_LINUX_LED_BOTTOM_H */
