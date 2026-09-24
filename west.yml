@@ -22,6 +22,7 @@ manifest:
           - mbedtls        # Matter crypto backend
           - tf-psa-crypto  # PSA crypto core used by Mbed TLS 4
           - openthread     # declared as a dependency of the Matter Zephyr module
+          - hal_espressif  # ESP32 SoC support and Wi-Fi (uedx32480035e_wb_a)
           - lvgl           # Zephyr main's Kconfig needs it (LV_COLOR_FORMAT_DEFAULT)
 
     - name: connectedhomeip

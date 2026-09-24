@@ -1,6 +1,11 @@
 # Copyright (c) 2021 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
 
-# ZMatter provides no Zephyr build integration of its own. This directory
-# holds the patches applied to other west projects (see patches.yml).
+# ZMatter holds the patches applied to other west projects (see
+# patches.yml) and can carry its own boards and devicetree bindings.
 name: zmatter
+build:
+  settings:
+    # Additional roots for boards and DTS
+    board_root: .
+    dts_root: .

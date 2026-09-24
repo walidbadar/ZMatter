@@ -140,3 +140,27 @@ chip-tool onoff read on-off 1 1
 > [!WARNING]
 > The device uses the test Device Attestation Certificate and test setup
 > codes from connectedhomeip. It is intended for development only.
+
+## VIEWE UEDX32480035E-WB-A (ESP32-S3)
+
+The light also runs on the
+[VIEWE UEDX32480035E-WB-A](https://docs.zephyrproject.org/latest/boards/viewe/uedx32480035e_wb_a/doc/index.html)
+display board. The bulb is its WS2812 RGB LED (lit white when on) and Matter
+runs over Wi-Fi. The device joins the Wi-Fi network at boot and is then
+commissioned on-network, like on `native_sim`; see
+[app/boards/uedx32480035e_wb_a_esp32s3_procpu.conf](app/boards/uedx32480035e_wb_a_esp32s3_procpu.conf).
+
+The ESP32 Wi-Fi driver needs the Espressif binary blobs, `esptool` and the
+Zephyr SDK `xtensa-espressif_esp32s3_zephyr-elf` toolchain:
+
+```shell
+west blobs fetch hal_espressif
+west packages pip --install
+west build -b uedx32480035e_wb_a/esp32s3/procpu ZMatter/app -- \
+    -DCONFIG_WIFI_CREDENTIALS_STATIC_SSID=\"<ssid>\" \
+    -DCONFIG_WIFI_CREDENTIALS_STATIC_PASSWORD=\"<password>\"
+west flash
+```
+
+The onboarding codes are printed on the USB serial console, the same as on
+`native_sim`.
