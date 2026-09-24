@@ -8,9 +8,9 @@ It uses only upstream, Apache-2.0 licensed components:
 
 | Component       | Version                                     |
 | --------------- | ------------------------------------------- |
-| Zephyr          | v4.4.2                                      |
+| Zephyr          | `main`                                      |
 | connectedhomeip | `master` @ `da40d15d` (pinned in `west.yml`) |
-| Mbed TLS / TF-PSA-Crypto | as shipped with Zephyr v4.4.2      |
+| Mbed TLS / TF-PSA-Crypto | as shipped with Zephyr `main`      |
 
 The device exposes:
 
@@ -35,17 +35,13 @@ Caps Lock LED, `input4::capslock`), driven through
 `/sys/class/leds/<name>/brightness` by Zephyr's `zephyr,native-linux-leds`
 driver. See [app/boards/native_sim_native_64.overlay](app/boards/native_sim_native_64.overlay).
 
-The patches in [zephyr/patches](zephyr/patches) are applied with
-`west patch apply`:
+This needs a small patch to connectedhomeip, kept in
+[zephyr/patches](zephyr/patches) and applied with `west patch apply`:
 
-- a backport of the `zephyr,native-linux-leds` driver from Zephyr `main`
-  (not part of v4.4.2), and
-- a small patch to connectedhomeip:
-
-  - the Zephyr `net_if` helpers are only built when Matter uses the Zephyr
-    `net_if` API (glibc and Zephyr networking headers cannot be mixed), and
-  - the event loop polls the host sockets instead of blocking in `select()`,
-    which would otherwise stall the simulated CPU and its clock.
+- the Zephyr `net_if` helpers are only built when Matter uses the Zephyr
+  `net_if` API (glibc and Zephyr networking headers cannot be mixed), and
+- the event loop polls the host sockets instead of blocking in `select()`,
+  which would otherwise stall the simulated CPU and its clock.
 
 ## Getting started
 

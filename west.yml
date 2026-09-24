@@ -14,7 +14,7 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: v4.4.2
+      revision: main
       import:
         # By using name-allowlist we can clone only the modules that are
         # strictly needed by the application.
@@ -22,6 +22,7 @@ manifest:
           - mbedtls        # Matter crypto backend
           - tf-psa-crypto  # PSA crypto core used by Mbed TLS 4
           - openthread     # declared as a dependency of the Matter Zephyr module
+          - lvgl           # Zephyr main's Kconfig needs it (LV_COLOR_FORMAT_DEFAULT)
 
     - name: connectedhomeip
       remote: project-chip
