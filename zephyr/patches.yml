@@ -1,0 +1,15 @@
+# Patches applied on top of the west projects with `west patch apply`.
+# The syntax is described in zephyr/scripts/schemas/patch-schema.yml.
+
+patches:
+  - path: connectedhomeip/0001-native_sim-support.patch
+    sha256sum: c3451389c31091dc10b3aab81f6da83589a27045261ecf4894068ec412e832f5
+    module: modules/lib/connectedhomeip
+    author: Muhammad Waleed Badar
+    email: walid.badar@gmail.com
+    date: 2026-09-24
+    upstreamable: true
+    apply-command: git apply
+    comments: |
+      Lets the generic Zephyr platform build and run on native_sim, where
+      Matter uses the host's BSD sockets.

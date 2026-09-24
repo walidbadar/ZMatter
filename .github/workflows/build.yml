@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Matter light (native_sim)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: ZMatter
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: 3.12
+
+      - name: Setup Zephyr project
+        uses: zephyrproject-rtos/action-zephyr-setup@be8136a8bba01580485d98b7ad2d32477c36a49a # v1.0.15
+        with:
+          app-path: ZMatter
+          toolchains: x86_64-zephyr-elf
+
+      - name: Setup Matter build tools
+        shell: bash
+        run: |
+          CHIP_ROOT=modules/lib/connectedhomeip
+          TOOLS="$PWD/.tools"
+          mkdir -p "$TOOLS/gn" "$TOOLS/zap"
+          curl -sSL -o gn.zip "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/latest"
+          unzip -q gn.zip -d "$TOOLS/gn"
+          ZAP_VERSION=$(cat "$CHIP_ROOT/scripts/setup/zap.version")
+          curl -sSL -o zap.zip "https://github.com/project-chip/zap/releases/download/${ZAP_VERSION}/zap-linux-x64.zip"
+          unzip -q zap.zip -d "$TOOLS/zap"
+          pip install -r "$CHIP_ROOT/scripts/setup/requirements.build.txt" \
+            -c "$CHIP_ROOT/scripts/setup/constraints.txt"
+          echo "$TOOLS/gn" >> "$GITHUB_PATH"
+          echo "ZAP_INSTALL_PATH=$TOOLS/zap" >> "$GITHUB_ENV"
+
+      - name: Apply patches
+        run: west patch apply
+
+      - name: Build firmware
+        working-directory: ZMatter
+        run: west build -b native_sim/native/64 app

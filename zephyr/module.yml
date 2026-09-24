@@ -1,0 +1,6 @@
+# Copyright (c) 2021 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+# ZMatter provides no Zephyr build integration of its own. This directory
+# holds the patches applied to other west projects (see patches.yml).
+name: zmatter

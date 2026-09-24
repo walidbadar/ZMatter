@@ -1,0 +1,38 @@
+# Copyright (c) 2021 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+manifest:
+  self:
+    path: ZMatter
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: project-chip
+      url-base: https://github.com/project-chip
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.2
+      import:
+        # By using name-allowlist we can clone only the modules that are
+        # strictly needed by the application.
+        name-allowlist:
+          - mbedtls        # Matter crypto backend
+          - tf-psa-crypto  # PSA crypto core used by Mbed TLS 4
+          - openthread     # declared as a dependency of the Matter Zephyr module
+
+    - name: connectedhomeip
+      remote: project-chip
+      # Pinned master revision: the v1.6 release predates Mbed TLS 4
+      # support, which Zephyr v4.4 requires.
+      revision: da40d15d1db7291f2cf8b94aa53277dbdad27b0c
+      path: modules/lib/connectedhomeip
+      # Only the submodules needed by the Zephyr platform build.
+      submodules:
+        - path: third_party/pigweed/repo
+        - path: third_party/nlassert/repo
+        - path: third_party/nlio/repo
+        - path: third_party/jsoncpp/repo
+        - path: third_party/uriparser/repo

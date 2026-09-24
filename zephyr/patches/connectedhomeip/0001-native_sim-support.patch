@@ -1,0 +1,102 @@
+From: Muhammad Waleed Badar <walid.badar@gmail.com>
+Date: Thu, 24 Sep 2026 00:00:00 +0000
+Subject: [PATCH] [Zephyr] Support the native_sim board
+
+On native_sim (CONFIG_ARCH_POSIX) Matter uses the host's BSD sockets.
+
+- Build the Zephyr net_if helpers only with
+  CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF: glibc's <netinet/in.h>, pulled in
+  by the Matter headers, cannot be combined with <zephyr/net/net_if.h> in
+  one translation unit (IPPROTO_* enumerators, s6_addr* macros).
+- Do not block in the host select(): that stalls the whole simulated CPU,
+  including its clock. Poll the sockets and sleep in between instead.
+
+diff --git a/src/platform/Zephyr/ConfigurationManagerImpl.cpp b/src/platform/Zephyr/ConfigurationManagerImpl.cpp
+index f5b348db..91e51079 100644
+--- a/src/platform/Zephyr/ConfigurationManagerImpl.cpp
++++ b/src/platform/Zephyr/ConfigurationManagerImpl.cpp
+@@ -33,9 +33,9 @@
+ #include "InetUtils.h"
+ 
+ #ifdef CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
+-#if (CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)
++#if ((CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)) && CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
+ #include <zephyr/net/net_if.h>
+-#endif //(CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)
++#endif //((CHIP_DEVICE_CONFIG_ENABLE_WIFI) || (CHIP_DEVICE_CONFIG_ENABLE_ETHERNET)) && CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
+ #endif // CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
+ 
+ #include <lib/support/CodeUtils.h>
+@@ -235,7 +235,7 @@ void ConfigurationManagerImpl::DoFactoryReset(intptr_t arg)
+ 
+ CHIP_ERROR ConfigurationManagerImpl::GetPrimaryWiFiMACAddress(uint8_t * buf)
+ {
+-#if CHIP_DEVICE_CONFIG_ENABLE_WIFI || CHIP_DEVICE_CONFIG_ENABLE_ETHERNET
++#if (CHIP_DEVICE_CONFIG_ENABLE_WIFI || CHIP_DEVICE_CONFIG_ENABLE_ETHERNET) && CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
+ #if CHIP_DEVICE_CONFIG_ENABLE_WIFI
+     const net_if * const iface = InetUtils::GetWiFiInterface();
+ #else
+diff --git a/src/platform/Zephyr/InetUtils.cpp b/src/platform/Zephyr/InetUtils.cpp
+index afbb6d3b..05e9c106 100644
+--- a/src/platform/Zephyr/InetUtils.cpp
++++ b/src/platform/Zephyr/InetUtils.cpp
+@@ -19,6 +19,8 @@
+ 
+ #include "InetUtils.h"
+ 
++#if CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
++
+ #include <zephyr/net/net_if.h>
+ 
+ namespace chip {
+@@ -50,3 +52,5 @@ net_if * GetWiFiInterface()
+ } // namespace InetUtils
+ } // namespace DeviceLayer
+ } // namespace chip
++
++#endif // CHIP_SYSTEM_CONFIG_USE_ZEPHYR_NET_IF
+diff --git a/src/system/SystemLayerImplSelect.cpp b/src/system/SystemLayerImplSelect.cpp
+index 7db76152..dc227f1b 100644
+--- a/src/system/SystemLayerImplSelect.cpp
++++ b/src/system/SystemLayerImplSelect.cpp
+@@ -31,6 +31,10 @@
+ #include <algorithm>
+ #include <errno.h>
+ 
++#if defined(CONFIG_ARCH_POSIX) && CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
++#include <zephyr/kernel.h>
++#endif
++
+ // Choose an approximation of PTHREAD_NULL if pthread.h doesn't define one.
+ #if CHIP_SYSTEM_CONFIG_POSIX_LOCKING && !defined(PTHREAD_NULL)
+ #define PTHREAD_NULL 0
+@@ -622,7 +626,29 @@ void LayerImplSelect::PrepareEvents()
+ 
+ void LayerImplSelect::WaitForEvents()
+ {
++#if defined(CONFIG_ARCH_POSIX) && CHIP_SYSTEM_CONFIG_USE_POSIX_SOCKETS
++    // On Zephyr native_sim the sockets belong to the host. A blocking host select() would stall
++    // the whole simulated CPU, including its clock, so poll the sockets and sleep in between.
++    constexpr int32_t kPollIntervalMs = 10;
++    const int64_t deadline = k_uptime_get() + mNextTimeout.tv_sec * 1000 + mNextTimeout.tv_usec / 1000;
++    const SelectSets requested = mSelected;
++
++    while (true)
++    {
++        timeval noWait = { 0, 0 };
++
++        mSelected     = requested;
++        mSelectResult = select(mMaxFd + 1, &mSelected.mReadSet, &mSelected.mWriteSet, &mSelected.mErrorSet, &noWait);
++        if (mSelectResult != 0 || k_uptime_get() >= deadline)
++        {
++            break;
++        }
++
++        k_msleep(kPollIntervalMs);
++    }
++#else
+     mSelectResult = select(mMaxFd + 1, &mSelected.mReadSet, &mSelected.mWriteSet, &mSelected.mErrorSet, &mNextTimeout);
++#endif
+ }
+ 
+ void LayerImplSelect::HandleEvents()
