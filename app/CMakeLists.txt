@@ -32,6 +32,7 @@ target_sources(app PRIVATE
   src/main.cpp
   src/light.cpp
 )
+target_sources_ifdef(CONFIG_WIFI_CREDENTIALS_CONNECT_STORED app PRIVATE src/wifi.cpp)
 target_include_directories(app PRIVATE src)
 
 include(${CHIP_ROOT}/src/app/chip_data_model.cmake)

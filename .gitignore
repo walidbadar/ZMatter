@@ -14,3 +14,6 @@ __pycache__/
 
 # native_sim simulated flash
 flash.bin
+
+# local build script with Wi-Fi credentials
+/build_esp32s3.sh

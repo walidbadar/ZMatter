@@ -4,6 +4,7 @@
  */
 
 #include "light.h"
+#include "wifi.h"
 
 #include <app/server/Server.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -86,6 +87,12 @@ int main(void)
 	if (InitMatter() != CHIP_NO_ERROR) {
 		return -1;
 	}
+
+#ifdef CONFIG_WIFI_CREDENTIALS_CONNECT_STORED
+	if (WifiInit() != 0) {
+		return -1;
+	}
+#endif
 
 	LOG_INF("ZMatter light bulb ready (endpoint %u)", kLightEndpointId);
 
