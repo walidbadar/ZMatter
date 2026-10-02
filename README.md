@@ -8,9 +8,9 @@ It uses only upstream, Apache-2.0 licensed components:
 
 | Component       | Version                                     |
 | --------------- | ------------------------------------------- |
-| Zephyr          | `main`                                      |
+| Zephyr          | `v4.5.0-rc1` (pinned in `west.yml`)         |
 | connectedhomeip | `master` @ `da40d15d` (pinned in `west.yml`) |
-| Mbed TLS / TF-PSA-Crypto | as shipped with Zephyr `main`      |
+| Mbed TLS / TF-PSA-Crypto | as shipped with Zephyr             |
 
 The device exposes:
 

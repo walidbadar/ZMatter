@@ -14,7 +14,8 @@ manifest:
   projects:
     - name: zephyr
       remote: zephyrproject-rtos
-      revision: main
+      # Release candidate until v4.5.0 is tagged
+      revision: v4.5.0-rc1
       import:
         # By using name-allowlist we can clone only the modules that are
         # strictly needed by the application.
@@ -23,12 +24,12 @@ manifest:
           - tf-psa-crypto  # PSA crypto core used by Mbed TLS 4
           - openthread     # declared as a dependency of the Matter Zephyr module
           - hal_espressif  # ESP32 SoC support and Wi-Fi (uedx32480035e_wb_a)
-          - lvgl           # Zephyr main's Kconfig needs it (LV_COLOR_FORMAT_DEFAULT)
+          - lvgl           # Zephyr's Kconfig needs it (LV_COLOR_FORMAT_DEFAULT)
 
     - name: connectedhomeip
       remote: project-chip
       # Pinned master revision: the v1.6 release predates Mbed TLS 4
-      # support, which Zephyr v4.4 requires.
+      # support, which Zephyr v4.4 and later require.
       revision: da40d15d1db7291f2cf8b94aa53277dbdad27b0c
       path: modules/lib/connectedhomeip
       # Only the submodules needed by the Zephyr platform build.
