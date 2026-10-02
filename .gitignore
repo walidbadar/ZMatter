@@ -16,4 +16,4 @@ __pycache__/
 flash.bin
 
 # local build script with Wi-Fi credentials
-/build_esp32s3.sh
+/matter.sh

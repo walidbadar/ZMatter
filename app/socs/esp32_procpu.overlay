@@ -1,9 +1,6 @@
 /*
  * Copyright (c) 2026 Muhammad Waleed Badar
  * SPDX-License-Identifier: Apache-2.0
- *
- * VIEWE UEDX32480035E-WB-A: the light bulb is the on-board WS2812 RGB LED
- * (rgb_led, alias led-strip). Matter runs over Wi-Fi.
  */
 
 / {
@@ -11,12 +8,4 @@
 		/* Matter state (fabrics, attributes) is kept in the settings */
 		zephyr,settings-partition = &storage_partition;
 	};
-
-	aliases {
-		bulb-strip = &rgb_led;
-	};
-};
-
-&sdhc0 {
-	status = "disabled";
 };

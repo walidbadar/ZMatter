@@ -17,7 +17,7 @@
 
 		bulb: bulb {
 			label = "Light bulb";
-			path = "input17::capslock";
+			path = "input16::capslock";
 		};
 	};
 };
