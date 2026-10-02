@@ -11,8 +11,20 @@ permissions:
 
 jobs:
   build:
-    name: Build Matter light (native_sim)
+    name: Build Matter light (${{ matrix.board }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: native_sim/native/64
+            toolchain: x86_64-zephyr-elf
+          - board: uedx32480035e_wb_a/esp32s3/procpu
+            toolchain: xtensa-espressif_esp32s3_zephyr-elf
+            espressif: true
+          - board: esp32_devkitc/esp32/procpu
+            toolchain: xtensa-espressif_esp32_zephyr-elf
+            espressif: true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,7 +41,7 @@ jobs:
         uses: zephyrproject-rtos/action-zephyr-setup@be8136a8bba01580485d98b7ad2d32477c36a49a # v1.0.15
         with:
           app-path: ZMatter
-          toolchains: x86_64-zephyr-elf
+          toolchains: ${{ matrix.toolchain }}
 
       - name: Setup Matter build tools
         shell: bash
@@ -50,6 +62,12 @@ jobs:
       - name: Apply patches
         run: west patch apply
 
+      - name: Setup Espressif blobs and tools
+        if: matrix.espressif
+        run: |
+          west blobs fetch hal_espressif
+          west packages pip --install
+
       - name: Build firmware
         working-directory: ZMatter
-        run: west build -b native_sim/native/64 app
+        run: west build -b ${{ matrix.board }} app
