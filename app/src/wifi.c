@@ -16,11 +16,11 @@ LOG_MODULE_DECLARE(app, CONFIG_APP_LOG_LEVEL);
 /* Delay before retrying after a disconnect or a failed connect */
 #define WIFI_RECONNECT_DELAY K_SECONDS(5)
 
-static struct k_work_delayable sReconnectWork;
-static struct net_mgmt_event_callback sWifiMgmtCb;
+static struct k_work_delayable reconnect_work;
+static struct net_mgmt_event_callback wifi_mgmt_cb;
 
 /* Start joining the network from the stored (build-time) credentials. */
-static int WifiConnect(void)
+static int wifi_connect(void)
 {
 	struct net_if *iface = net_if_get_wifi_sta();
 	int ret;
@@ -41,17 +41,17 @@ static int WifiConnect(void)
 	return 0;
 }
 
-static void ReconnectHandler(struct k_work *work)
+static void reconnect_handler(struct k_work *work)
 {
 	ARG_UNUSED(work);
 
-	if (WifiConnect() != 0) {
-		k_work_reschedule(&sReconnectWork, WIFI_RECONNECT_DELAY);
+	if (wifi_connect() != 0) {
+		(void)k_work_reschedule(&reconnect_work, WIFI_RECONNECT_DELAY);
 	}
 }
 
-static void WifiEventHandler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
-			     struct net_if *iface)
+static void wifi_event_handler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
+			       struct net_if *iface)
 {
 	const struct wifi_status *status = (const struct wifi_status *)cb->info;
 
@@ -61,32 +61,34 @@ static void WifiEventHandler(struct net_mgmt_event_callback *cb, uint64_t mgmt_e
 	case NET_EVENT_WIFI_CONNECT_RESULT:
 		if (status->status != 0) {
 			LOG_WRN("Wi-Fi connect failed (%d), retrying", status->status);
-			k_work_reschedule(&sReconnectWork, WIFI_RECONNECT_DELAY);
+			(void)k_work_reschedule(&reconnect_work, WIFI_RECONNECT_DELAY);
 		} else {
 			LOG_INF("Wi-Fi connected");
-			k_work_cancel_delayable(&sReconnectWork);
+			(void)k_work_cancel_delayable(&reconnect_work);
 		}
 		break;
 	case NET_EVENT_WIFI_DISCONNECT_RESULT:
 		LOG_WRN("Wi-Fi disconnected (reason %d), reconnecting", status->disconn_reason);
-		k_work_reschedule(&sReconnectWork, WIFI_RECONNECT_DELAY);
+		(void)k_work_reschedule(&reconnect_work, WIFI_RECONNECT_DELAY);
 		break;
 	default:
 		break;
 	}
 }
 
-int WifiInit(void)
+int wifi_init(void)
 {
-	k_work_init_delayable(&sReconnectWork, ReconnectHandler);
+	int ret;
 
-	net_mgmt_init_event_callback(&sWifiMgmtCb, WifiEventHandler,
+	k_work_init_delayable(&reconnect_work, reconnect_handler);
+
+	net_mgmt_init_event_callback(&wifi_mgmt_cb, wifi_event_handler,
 				     NET_EVENT_WIFI_CONNECT_RESULT |
 					     NET_EVENT_WIFI_DISCONNECT_RESULT);
-	net_mgmt_add_event_callback(&sWifiMgmtCb);
+	net_mgmt_add_event_callback(&wifi_mgmt_cb);
 
 	/* First attempt runs from the work queue, like every retry. */
-	k_work_schedule(&sReconnectWork, K_NO_WAIT);
+	ret = k_work_schedule(&reconnect_work, K_NO_WAIT);
 
-	return 0;
+	return (ret < 0) ? ret : 0;
 }

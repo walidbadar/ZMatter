@@ -28,11 +28,18 @@ project(app LANGUAGES C CXX)
 # library on the link line; append the kernel archive again after it.
 target_link_libraries(chip INTERFACE $<TARGET_FILE:kernel>)
 
+# Application code is C
 target_sources(app PRIVATE
-  src/main.cpp
-  src/light.cpp
+  src/main.c
+  src/light.c
 )
-target_sources_ifdef(CONFIG_WIFI_CREDENTIALS_CONNECT_STORED app PRIVATE src/wifi.cpp)
+target_sources_ifdef(CONFIG_WIFI_CREDENTIALS_CONNECT_STORED app PRIVATE src/wifi.c)
+
+# C++ shim exposing the Matter C++ API to the C application (src/matter/matter.h)
+target_sources(app PRIVATE
+  src/matter/matter.cpp
+  src/matter/network.cpp
+)
 target_include_directories(app PRIVATE src)
 
 include(${CHIP_ROOT}/src/app/chip_data_model.cmake)

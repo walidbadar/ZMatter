@@ -14,7 +14,7 @@ It uses only upstream, Apache-2.0 licensed components:
 
 The device exposes:
 
-- endpoint 0: Root Node
+- endpoint 0: Root Node (with Network Commissioning)
 - endpoint 1: On/Off Light (Identify, Groups, On/Off, Descriptor)
 
 The data model is defined in [app/light.zap](app/light.zap) (derived from the
@@ -141,26 +141,55 @@ chip-tool onoff read on-off 1 1
 > The device uses the test Device Attestation Certificate and test setup
 > codes from connectedhomeip. It is intended for development only.
 
-## VIEWE UEDX32480035E-WB-A (ESP32-S3)
+## ESP32 and ESP32-S3
 
-The light also runs on the
+The light also runs on ESP32 and ESP32-S3 boards, with Matter over Wi-Fi.
+It is tested on the
 [VIEWE UEDX32480035E-WB-A](https://docs.zephyrproject.org/latest/boards/viewe/uedx32480035e_wb_a/doc/index.html)
-display board. The bulb is its WS2812 RGB LED (lit white when on) and Matter
-runs over Wi-Fi. The device joins the Wi-Fi network at boot and is then
-commissioned on-network, like on `native_sim`; see
-[app/boards/uedx32480035e_wb_a_esp32s3_procpu.conf](app/boards/uedx32480035e_wb_a_esp32s3_procpu.conf).
+display board (ESP32-S3), whose bulb is its WS2812 RGB LED (lit white when
+on). Other boards use their `led0` LED, or only log the light state when they
+have none (e.g. `esp32_devkitc`).
 
-The ESP32 Wi-Fi driver needs the Espressif binary blobs, `esptool` and the
-Zephyr SDK `xtensa-espressif_esp32s3_zephyr-elf` toolchain:
+The ESP32 has much less internal RAM than the ESP32-S3, so on ESP32 boards
+the kernel heap, the Wi-Fi, IP and Bluetooth buffers and the Matter pools are
+reduced, IPv4 is disabled and Matter supports 3 fabrics instead of 5 (see
+[app/socs/esp32_procpu.conf](app/socs/esp32_procpu.conf) and
+[app/src/CHIPProjectConfig.h](app/src/CHIPProjectConfig.h)). These limits are
+only build-tested.
+
+The device is commissioned over Bluetooth LE: the commissioner sends it the
+Wi-Fi credentials through the Network Commissioning cluster, the device joins
+Wi-Fi and commissioning completes over IP. The credentials are stored and
+used again on the next boot. Wi-Fi and Bluetooth are configured in
+[app/prj.conf](app/prj.conf), with SoC specific settings in
+[app/socs](app/socs).
+
+The ESP32 Wi-Fi and Bluetooth drivers need the Espressif binary blobs,
+`esptool` and the Zephyr SDK `xtensa-espressif_esp32_zephyr-elf` or
+`xtensa-espressif_esp32s3_zephyr-elf` toolchain:
 
 ```shell
 west blobs fetch hal_espressif
 west packages pip --install
-west build -b uedx32480035e_wb_a/esp32s3/procpu ZMatter/app -- \
-    -DCONFIG_WIFI_CREDENTIALS_STATIC_SSID=\"<ssid>\" \
-    -DCONFIG_WIFI_CREDENTIALS_STATIC_PASSWORD=\"<password>\"
+west build -b uedx32480035e_wb_a/esp32s3/procpu ZMatter/app
 west flash
 ```
 
-The onboarding codes are printed on the USB serial console, the same as on
-`native_sim`.
+The onboarding codes are printed on the USB serial console. Commission the
+device with chip-tool, on a host with Bluetooth:
+
+```shell
+chip-tool pairing ble-wifi 1 <ssid> <password> 20202021 3840
+chip-tool onoff toggle 1 1
+```
+
+To join a fixed Wi-Fi network at boot instead, and commission the device
+on-network like on `native_sim`, build with
+[app/wifi_static.conf](app/wifi_static.conf). It disables Bluetooth:
+
+```shell
+west build -b uedx32480035e_wb_a/esp32s3/procpu ZMatter/app -- \
+    -DEXTRA_CONF_FILE=wifi_static.conf \
+    -DCONFIG_WIFI_CREDENTIALS_STATIC_SSID=\"<ssid>\" \
+    -DCONFIG_WIFI_CREDENTIALS_STATIC_PASSWORD=\"<password>\"
+```

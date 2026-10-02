@@ -9,8 +9,10 @@ common:
   platform_allow:
     - native_sim/native/64
     - uedx32480035e_wb_a/esp32s3/procpu
+    - esp32_devkitc/esp32/procpu
   integration_platforms:
     - native_sim/native/64
     - uedx32480035e_wb_a/esp32s3/procpu
+    - esp32_devkitc/esp32/procpu
 tests:
   app.light: {}

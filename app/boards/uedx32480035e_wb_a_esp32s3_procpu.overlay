@@ -7,11 +7,6 @@
  */
 
 / {
-	chosen {
-		/* Matter state (fabrics, attributes) is kept in the settings */
-		zephyr,settings-partition = &storage_partition;
-	};
-
 	aliases {
 		bulb-strip = &rgb_led;
 	};

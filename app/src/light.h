@@ -5,10 +5,21 @@
 
 #pragma once
 
-#include <lib/core/DataModelTypes.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Endpoint hosting the On/Off Light device type (see light.zap). */
-inline constexpr chip::EndpointId kLightEndpointId = 1;
+#define LIGHT_ENDPOINT_ID 1
 
 /* Configure the LED that represents the bulb (alias bulb-strip, else led0). */
-int LightInit(void);
+int light_init(void);
+
+/* Turn the bulb on or off. */
+void light_set(bool on);
+
+#ifdef __cplusplus
+}
+#endif
