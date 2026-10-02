@@ -66,7 +66,7 @@ jobs:
         if: matrix.espressif
         run: |
           west blobs fetch hal_espressif
-          west packages pip --install
+          west packages pip --install --ignore-venv-check
 
       - name: Build firmware
         working-directory: ZMatter
